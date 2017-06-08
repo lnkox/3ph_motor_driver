@@ -1,0 +1,31 @@
+RAM Allocation [bytes]
+Variable                                                                          Address   Size
+------------------------------------------------------------------------------------------------
+amplitude                                                                         0x0180       4
+sinseg                                                                            0x0184       2
+
+EEPROM Allocation [bytes]
+Variable                                                                          Address   Size
+------------------------------------------------------------------------------------------------
+
+Register Allocation
+Variable                                                                          Register  Size
+------------------------------------------------------------------------------------------------
+ph0a                                                                              R4           1
+ph0b                                                                              R3           1
+ph1a                                                                              R6           1
+ph1b                                                                              R5           1
+ph2a                                                                              R8           1
+ph2b                                                                              R7           1
+sinpos                                                                            R9,R10       2
+direct                                                                            R11,R12      2
+sinseg_period                                                                     R13,R14      2
+
+FLASH Allocation [words]
+Function                                                                          Address   Size
+------------------------------------------------------------------------------------------------
+timer0_ovf_isr                                                                    0x00175     62
+gen_next_sinpos                                                                   0x001B3     82
+InsertDeadband                                                                    0x00205     34
+set_freq                                                                          0x00227     11
+main                                                                              0x00232    105
