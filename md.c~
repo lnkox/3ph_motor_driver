@@ -21,7 +21,7 @@ Data Stack size         : 128
 *******************************************************/
 //початок Налаштування
 #define DEAD_TIME_HALF      2  //Мертвий час (1 = 0.26 мкс)
-
+#define ACCELERATION        40  //Присорення  (Гц/сек)
 
 //Кінець налаштувань
 
@@ -50,10 +50,11 @@ Data Stack size         : 128
 #define POWER_SENS      PIND.2  // Пропажа сети - нормальное состояние лог.0, при лог.1 - сделать стоп привода, после появления лог.0 - выждать 4 секунды>зажечть светодиод PC2> разрешить генерацию. 
 #define CAP_VOLTAGE     3       //ADC3 - пренапряжение силовой части ( больше +340В).С силового конденсатора через делитель заходит сигнал. Номинальное напряжение на порте 2,5В (310В) все что выше 2,75 (340В) является перенапряжением. В случае перенапряжения от 2,75 до 2,9В - приостанавливать торможение, до тех пор пока не упадет до 2,5В. В случае перенапряжения выше 2,9В - резко прекратить генерацию, на светодиод PC1 подать сигнал с частотой 3 Гц. Выйти из аварии через нажатие PD0. 
 #define DRIVER_TEMP     4       //ADC4 - измерение перегрева силовой части. Согласно таблицам расчитать работы терморезистора. При перегреве выше 80 градусов. Сделать остановку привода, на светодиод PC1 подать сигнал с частотой 2Гц. Работу привода возобновить с охлаждением до 50 градусов. (Нужно запоминать значение аварии, что бы нельзя было сбить защиту путем включения, выключения привода) 
+#define FREQUENCY_ADC   7       //ADC7 - регулировка частоты
 #define NORMAL_LED      PORTC.2 // - светодиод индикации работы - начинает гореть спустя 4 секунды после (включения PD2) При включении генерации мигает с частотой 2 Гц. 
 #define ERROR_LED       PORTC.1 // - светодиод индикации аварии
-#define OVERLOAD        PINB.5  // - сверхток - лог.0 (подтянут через 10К к 5В) - при подаче лог.0 на этот вывод - резко прекратить генерацию, на светодиод PC1 подать постоянный сигнал. Выйти из аварии через нажатие PD0. 
-#define OVER_MOTORTEMP  PIND.2  // - Перегрев двигателя - нормальное состояние лог.0 при появлении лог.1. сделать стоп привода, подать на PC1 сигнал с частотой 1Гц. Разрешить работу только при появлении лог.0.
+#define OVER_LOAD       PINB.5  // - сверхток - лог.0 (подтянут через 10К к 5В) - при подаче лог.0 на этот вывод - резко прекратить генерацию, на светодиод PC1 подать постоянный сигнал. Выйти из аварии через нажатие PD0. 
+#define OVER_MOTORTEMP  PIND.4  // - Перегрев двигателя - нормальное состояние лог.0 при появлении лог.1. сделать стоп привода, подать на PC1 сигнал с частотой 1Гц. Разрешить работу только при появлении лог.0.
 
 // Кінець роспіновки
 
@@ -66,14 +67,18 @@ void InsertDeadband(char compareValue, char * compareHighPtr, char * compareLowP
 void gen_next_sinpos(void); // Функція генерації наступного значення ШІМ    
 void off_pwm(void); // Відключення всіх виходів на транзистори
 void sys_timer(void); // Системний таймер -100 Гц
+void set_freq(int fr); // Встановлення частоти синусоїди
+unsigned int read_adc(unsigned char adc_input); // Функйція отримання значення АЦП
 // Declare your global variables here
-char mode=0;
-int sinpos=0;
-int direct=0;
-float amplitude=0;
-int sinseg_period=0,sinseg=0;
-int sys_timer_cnt=0;
-
+volatile int mode=0;
+volatile int sinpos=0;
+volatile int direct=0;
+volatile float amplitude=0;
+volatile int sinseg_period=124,sinseg=0;
+volatile int sys_timer_cnt=0;
+volatile int accel_cnt=0;
+volatile int cur_freq=0,freq=0; 
+volatile int error_led_cnt=0,error_led_period=0,error=0; 
 long map(long x, long in_min, long in_max, long out_min, long out_max)
 {
   return ((x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
@@ -93,7 +98,42 @@ interrupt [TIM0_OVF] void timer0_ovf_isr(void)
 }
 void sys_timer(void)
 {
-    
+   if (mode==1)
+   { 
+        if(cur_freq<freq || cur_freq>freq)
+        {
+            accel_cnt=accel_cnt+ACCELERATION;
+            if (accel_cnt>99) 
+            {
+                accel_cnt=0; 
+                if (cur_freq<freq) {cur_freq++;} else {cur_freq--;} 
+                set_freq(cur_freq);
+            }
+        } 
+      freq=map( read_adc(FREQUENCY_ADC),0,1023,0,60); 
+      
+      
+   } 
+   else
+   {
+        if (error>0)
+        {
+             NORMAL_LED=0;
+             error_led_cnt++;
+             if (error_led_cnt>error_led_period) 
+             {  
+                ERROR_LED=!ERROR_LED;
+                error_led_cnt=0;  
+             }       
+        } 
+        if (mode==0 && error==0) 
+        {
+            NORMAL_LED=1;    
+        }
+        
+   }
+
+  
 }
 void gen_next_sinpos(void)
 {
@@ -147,12 +187,13 @@ void InsertDeadband(char compareValue, char * compareHighPtr, char * compareLowP
   }
 }
 
-void set_freq(int freq)
+void set_freq(int fr)
 {
    float amp;
-   if (freq==0) {amplitude=0;sinseg_period=124; return;}   
-   sinseg_period=124/freq; 
-   amp=map(freq,1,60,30,100); 
+   if (fr==0) {amplitude=0;sinseg_period=124; return;}   
+   sinseg_period=124/fr; 
+   amp=map(fr,1,50,30,100); 
+   if (amp>100) amp=100;
    amplitude=amp/100;    
    
 }
@@ -167,13 +208,16 @@ void off_pwm(void)
 }
 void check_error(void)
 {
+int tmp_error=0;
 //POWER_SENS 
 // CAP_VOLTAGE
 //  DRIVER_TEMP
 //   NORMAL_LED
 //    ERROR_LED
 //    OVERLOAD 
-//     OVER_MOTORTEMP    
+if (OVER_MOTORTEMP==1) {mode=0; tmp_error=ERROR_MOTORTEMP;error_led_period=100;} 
+error=tmp_error;
+if (error==0) {ERROR_LED=0;}   
 }
 // Voltage Reference: AVCC pin
 #define ADC_VREF_TYPE ((0<<REFS1) | (1<<REFS0) | (0<<ADLAR))
@@ -181,21 +225,20 @@ void check_error(void)
 // Read the AD conversion result
 unsigned int read_adc(unsigned char adc_input)
 {
-ADMUX=adc_input | ADC_VREF_TYPE;
-// Delay needed for the stabilization of the ADC input voltage
-delay_us(10);
-// Start the AD conversion
-ADCSRA|=(1<<ADSC);
-// Wait for the AD conversion to complete
-while ((ADCSRA & (1<<ADIF))==0);
-ADCSRA|=(1<<ADIF);
-return ADCW;
+    ADMUX=adc_input | ADC_VREF_TYPE;
+    // Delay needed for the stabilization of the ADC input voltage
+    delay_us(10);
+    // Start the AD conversion
+    ADCSRA|=(1<<ADSC);
+    // Wait for the AD conversion to complete
+    while ((ADCSRA & (1<<ADIF))==0);
+    ADCSRA|=(1<<ADIF);
+    return ADCW;
 }
 
 void main(void)
 {
 // Declare your local variables here
-int adcv=0;
 // Crystal Oscillator division factor: 1
 #pragma optsize-
 CLKPR=(1<<CLKPCE);
@@ -334,15 +377,14 @@ SPCR=(0<<SPIE) | (0<<SPE) | (0<<DORD) | (0<<MSTR) | (0<<CPOL) | (0<<CPHA) | (0<<
 TWCR=(0<<TWEA) | (0<<TWSTA) | (0<<TWSTO) | (0<<TWEN) | (0<<TWIE);
 
 // Global enable interrupts
-TCNT0=0;
-TCNT1L=2;
-TCNT2=5;
+TCNT0=0;    //Синхронізація таймерів
+TCNT1L=2;   //Синхронізація таймерів
+TCNT2=5;    //Синхронізація таймерів
 #asm("sei")
-      set_freq(50);   
       mode=1;
 while (1)
       {
-      // Place your code here
+        check_error(); // Перевірка на помилки (Виконується весь вільний процесорний час)
 
 
       }
