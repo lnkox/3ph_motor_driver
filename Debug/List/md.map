@@ -14,10 +14,15 @@ freq                                                                            
 error_led_cnt                                                                     0x0196       2
 error_led_period                                                                  0x0198       2
 error                                                                             0x019A       2
+overload_state                                                                    0x019C       2
+overvoltage_state                                                                 0x019E       2
+crytycal_voltage                                                                  0x01A0       2
+brake_cnt                                                                         0x01A2       2
 
 EEPROM Allocation [bytes]
 Variable                                                                          Address   Size
 ------------------------------------------------------------------------------------------------
+driver_temp_state                                                                 0x0000       2
 
 Register Allocation
 Variable                                                                          Register  Size
@@ -26,11 +31,12 @@ Variable                                                                        
 FLASH Allocation [words]
 Function                                                          Address   Size
 --------------------------------------------------------------------------------
-timer0_ovf_isr                                                    0x00191     76
-sys_timer                                                         0x001DD    113
-gen_next_sinpos                                                   0x0024E     96
-InsertDeadband                                                    0x002AE     34
-set_freq                                                          0x002D0     74
-off_pwm                                                           0x0031A      7
-check_error                                                       0x00321     32
-main                                                              0x0035D    110
+timer0_ovf_isr                                                    0x00191     82
+sys_timer                                                         0x001E3    132
+check_button                                                      0x00267     39
+gen_next_sinpos                                                   0x0028E     96
+InsertDeadband                                                    0x002EE     31
+set_freq                                                          0x0030D     70
+off_pwm                                                           0x00353      7
+check_error                                                       0x0035A    139
+main                                                              0x00401    104

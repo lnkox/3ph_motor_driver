@@ -20,8 +20,15 @@ External RAM size       : 0
 Data Stack size         : 128
 *******************************************************/
 //початок Налаштування
-#define DEAD_TIME_HALF      2  //Мертвий час (1 = 0.26 мкс)
-#define ACCELERATION        40  //Присорення  (Гц/сек)
+#define DEAD_TIME_HALF      2   //Мертвий час (1 = 0.26 мкс)
+#define ACCELERATION        40  //Прискорення  (Гц/сек)
+#define NORM_VOLTAGE        512 // Нормальне значення робочої напруги в одиницях АЦП (Макс:1023)
+#define MAX_BRAKE_VOLTAGE   562 // Максимальне допустипе значення напруги при гальмуванні в одиницях АЦП (Макс:1023)
+#define CRYTYCAL_VOLTAGE    594 // Критичне значення напруги в одиницях АЦП (Макс:1023)
+#define BRAKE_PERIOD        100 // Період гальмування двигуна (1/100 сек)
+#define NORM_TEMP_DRIVER    200 // Нормальне значення температури драйвера в одиницях АЦП (Макс:1023)
+#define MAX_TEMP_DRIVER     300 // Максимальне допустипе значення температури драйвера в одиницях АЦП (Макс:1023)
+
 
 //Кінець налаштувань
 
@@ -69,6 +76,7 @@ void off_pwm(void); // Відключення всіх виходів на транзистори
 void sys_timer(void); // Системний таймер -100 Гц
 void set_freq(int fr); // Встановлення частоти синусоїди
 unsigned int read_adc(unsigned char adc_input); // Функйція отримання значення АЦП
+void check_button(); // Перевірка натисення кнопок
 // Declare your global variables here
 volatile int mode=0;
 volatile int sinpos=0;
@@ -79,6 +87,12 @@ volatile int sys_timer_cnt=0;
 volatile int accel_cnt=0;
 volatile int cur_freq=0,freq=0; 
 volatile int error_led_cnt=0,error_led_period=0,error=0; 
+volatile int overload_state=0,overvoltage_state=0,crytycal_voltage=0; 
+volatile int brake_cnt=0; 
+
+#pragma warn-
+eeprom  int driver_temp_state;
+#pragma warn+
 long map(long x, long in_min, long in_max, long out_min, long out_max)
 {
   return ((x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
@@ -91,14 +105,14 @@ interrupt [TIM0_OVF] void timer0_ovf_isr(void)
      {
         sinseg=0; 
         if (amplitude==0 || mode==0){off_pwm();}
-        if (mode==1 && amplitude>0 ) {gen_next_sinpos();}             
+        if (mode==1 && amplitude>0  && overvoltage_state==0) {gen_next_sinpos();}             
      }
     sys_timer_cnt++;
     if (sys_timer_cnt>138) {sys_timer_cnt=0; sys_timer();}
 }
 void sys_timer(void)
 {
-   if (mode==1)
+   if (mode==MODE_RUN)
    { 
         if(cur_freq<freq || cur_freq>freq)
         {
@@ -111,11 +125,10 @@ void sys_timer(void)
             }
         } 
       freq=map( read_adc(FREQUENCY_ADC),0,1023,0,60); 
-      
-      
    } 
    else
-   {
+   {  
+        cur_freq=1;
         if (error>0)
         {
              NORMAL_LED=0;
@@ -126,14 +139,40 @@ void sys_timer(void)
                 error_led_cnt=0;  
              }       
         } 
-        if (mode==0 && error==0) 
+        if (mode==MODE_STOP  && error==ERROR_NO) 
         {
-            NORMAL_LED=1;    
+            NORMAL_LED=1;
+        }
+        if (mode==MODE_BRAKE)
+        {
+            freq=1;
+            brake_cnt++;
+            if (brake_cnt>BRAKE_PERIOD) {brake_cnt=0;mode=MODE_STOP;}
         }
         
-   }
-
-  
+   }  
+   
+   check_button();
+}
+void check_button()
+{
+    if (mode==MODE_STOP)
+    {
+        if(REVERSE_BUT==0) {mode=MODE_RUN;direct=DIRECTION_REVERSE;}
+        if(FORWARD_BUT==0) {mode=MODE_RUN;direct=DIRECTION_FORWARD;}
+    }
+    if(STOP_BUT==0)
+    { 
+        if (mode==MODE_STOP)
+        {
+            overload_state=0;
+            crytycal_voltage=0;    
+        }
+        else
+        {
+            mode=MODE_BRAKE; 
+        }    
+    }
 }
 void gen_next_sinpos(void)
 {
@@ -208,16 +247,21 @@ void off_pwm(void)
 }
 void check_error(void)
 {
-int tmp_error=0;
-//POWER_SENS 
-// CAP_VOLTAGE
-//  DRIVER_TEMP
-//   NORMAL_LED
-//    ERROR_LED
-//    OVERLOAD 
-if (OVER_MOTORTEMP==1) {mode=0; tmp_error=ERROR_MOTORTEMP;error_led_period=100;} 
-error=tmp_error;
-if (error==0) {ERROR_LED=0;}   
+    volatile int tmp_error=0;
+    volatile int capvoltage,driver_t=0;
+     capvoltage=read_adc(CAP_VOLTAGE);
+    //POWER_SENS 
+
+    if (capvoltage<NORM_VOLTAGE){overvoltage_state=0;}
+    if (capvoltage>MAX_BRAKE_VOLTAGE) {off_pwm();overvoltage_state=1;}
+    if (capvoltage>CRYTYCAL_VOLTAGE || crytycal_voltage==1) {off_pwm(); mode=MODE_STOP;crytycal_voltage=1; error_led_period=33;tmp_error=ERROR_OVERVOLTAGE;} 
+    driver_t=read_adc(DRIVER_TEMP);  
+    if (driver_t>MAX_TEMP_DRIVER || driver_temp_state==1)   {off_pwm(); mode=MODE_STOP;driver_temp_state=1; error_led_period=50;tmp_error=ERROR_DRIVERTEMP;}   
+    if (driver_t<NORM_TEMP_DRIVER)  {driver_temp_state=0;}   
+    if (OVER_LOAD==0 || overload_state==1) {off_pwm(); mode=MODE_STOP;overload_state=1; ERROR_LED=1;tmp_error=ERROR_OVERLOAD;} 
+    if (OVER_MOTORTEMP==1) {mode=MODE_STOP; tmp_error=ERROR_MOTORTEMP;error_led_period=100;} 
+    error=tmp_error;
+    if (error==0) {ERROR_LED=0;}   
 }
 // Voltage Reference: AVCC pin
 #define ADC_VREF_TYPE ((0<<REFS1) | (1<<REFS0) | (0<<ADLAR))
@@ -357,15 +401,16 @@ ACSR=(1<<ACD) | (0<<ACBG) | (0<<ACO) | (0<<ACI) | (0<<ACIE) | (0<<ACIC) | (0<<AC
 // Digital input buffer on AIN1: On
 DIDR1=(0<<AIN0D) | (0<<AIN1D);
 
+
 // ADC initialization
-// ADC Clock frequency: 62,500 kHz
-// ADC Voltage Reference: AREF pin
+// ADC Clock frequency: 1000,000 kHz
+// ADC Voltage Reference: AVCC pin
 // ADC Auto Trigger Source: ADC Stopped
 // Digital input buffers on ADC0: On, ADC1: On, ADC2: On, ADC3: On
 // ADC4: On, ADC5: On
 DIDR0=(0<<ADC5D) | (0<<ADC4D) | (0<<ADC3D) | (0<<ADC2D) | (0<<ADC1D) | (0<<ADC0D);
 ADMUX=ADC_VREF_TYPE;
-ADCSRA=(1<<ADEN) | (0<<ADSC) | (0<<ADATE) | (0<<ADIF) | (0<<ADIE) | (1<<ADPS2) | (1<<ADPS1) | (1<<ADPS0);
+ADCSRA=(1<<ADEN) | (0<<ADSC) | (0<<ADATE) | (0<<ADIF) | (0<<ADIE) | (0<<ADPS2) | (1<<ADPS1) | (1<<ADPS0);
 ADCSRB=(0<<ADTS2) | (0<<ADTS1) | (0<<ADTS0);
 
 // SPI initialization
@@ -381,7 +426,6 @@ TCNT0=0;    //Синхронізація таймерів
 TCNT1L=2;   //Синхронізація таймерів
 TCNT2=5;    //Синхронізація таймерів
 #asm("sei")
-      mode=1;
 while (1)
       {
         check_error(); // Перевірка на помилки (Виконується весь вільний процесорний час)
