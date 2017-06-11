@@ -19,55 +19,87 @@ Memory model            : Small
 External RAM size       : 0
 Data Stack size         : 128
 *******************************************************/
-#define DEAD_TIME_HALF 2 
-#define SINE_TABLE_LENGTH 192
+//початок Налаштування
+#define DEAD_TIME_HALF      2  //Мертвий час (1 = 0.26 мкс)
 
-#define DIRECTION_FORWARD       0
-#define DIRECTION_REVERSE       1
 
-#define start_but PIND.1
-#define stop_but PIND.0
-#define revers_but PINC.5
+//Кінець налаштувань
+
+
+#define SINE_TABLE_LENGTH   192 // Кількість значень в таблиці синусів
+
+#define DIRECTION_FORWARD       0 // Константа руху вперед
+#define DIRECTION_REVERSE       1 // Константа руху назад
+
+#define MODE_STOP      0 // режим "Зупинений"
+#define MODE_RUN       1 // режим "Робота"
+#define MODE_BRAKE     2 // режим "Гальмування"
+
+#define ERROR_NO            0 // Помилки відчсутні
+#define ERROR_POWER         1 // Відсутність живлення
+#define ERROR_OVERVOLTAGE   2 // Перенапруга на конденсаторі
+#define ERROR_OVERLOAD      3 // Перевантаження по струму
+#define ERROR_DRIVERTEMP    4 // Перегрів драйвера
+#define ERROR_MOTORTEMP     5 // Перегрів Двигуна
+
+// Роспіновка
+#define FORWARD_BUT     PIND.1  //  Кнопка запуску вперед
+#define STOP_BUT        PIND.0  //  Кнопка зупинки
+#define REVERSE_BUT     PINC.5  //  Кнопка запуску назад
+
+#define POWER_SENS      PIND.2  // Пропажа сети - нормальное состояние лог.0, при лог.1 - сделать стоп привода, после появления лог.0 - выждать 4 секунды>зажечть светодиод PC2> разрешить генерацию. 
+#define CAP_VOLTAGE     3       //ADC3 - пренапряжение силовой части ( больше +340В).С силового конденсатора через делитель заходит сигнал. Номинальное напряжение на порте 2,5В (310В) все что выше 2,75 (340В) является перенапряжением. В случае перенапряжения от 2,75 до 2,9В - приостанавливать торможение, до тех пор пока не упадет до 2,5В. В случае перенапряжения выше 2,9В - резко прекратить генерацию, на светодиод PC1 подать сигнал с частотой 3 Гц. Выйти из аварии через нажатие PD0. 
+#define DRIVER_TEMP     4       //ADC4 - измерение перегрева силовой части. Согласно таблицам расчитать работы терморезистора. При перегреве выше 80 градусов. Сделать остановку привода, на светодиод PC1 подать сигнал с частотой 2Гц. Работу привода возобновить с охлаждением до 50 градусов. (Нужно запоминать значение аварии, что бы нельзя было сбить защиту путем включения, выключения привода) 
+#define NORMAL_LED      PORTC.2 // - светодиод индикации работы - начинает гореть спустя 4 секунды после (включения PD2) При включении генерации мигает с частотой 2 Гц. 
+#define ERROR_LED       PORTC.1 // - светодиод индикации аварии
+#define OVERLOAD        PINB.5  // - сверхток - лог.0 (подтянут через 10К к 5В) - при подаче лог.0 на этот вывод - резко прекратить генерацию, на светодиод PC1 подать постоянный сигнал. Выйти из аварии через нажатие PD0. 
+#define OVER_MOTORTEMP  PIND.2  // - Перегрев двигателя - нормальное состояние лог.0 при появлении лог.1. сделать стоп привода, подать на PC1 сигнал с частотой 1Гц. Разрешить работу только при появлении лог.0.
+
+// Кінець роспіновки
 
 #include <mega48.h>
 
 #include <delay.h>
 #include <md.h>
 
-void InsertDeadband(char compareValue, char * compareHighPtr, char * compareLowPtr);
-void gen_next_sinpos(void);    
-void off_pwm(void);
+void InsertDeadband(char compareValue, char * compareHighPtr, char * compareLowPtr); //Функція вставки метрвого часу
+void gen_next_sinpos(void); // Функція генерації наступного значення ШІМ    
+void off_pwm(void); // Відключення всіх виходів на транзистори
+void sys_timer(void); // Системний таймер -100 Гц
 // Declare your global variables here
 char mode=0;
-char ph0a=0,ph0b=0,ph1a=0,ph1b=0,ph2a=0,ph2b=0;
 int sinpos=0;
 int direct=0;
 float amplitude=0;
 int sinseg_period=0,sinseg=0;
+int sys_timer_cnt=0;
+
 long map(long x, long in_min, long in_max, long out_min, long out_max)
 {
   return ((x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
 }
+
 interrupt [TIM0_OVF] void timer0_ovf_isr(void)
 {
- sinseg++;
- if (sinseg>=sinseg_period) 
- {
-    sinseg=0;
-
-    gen_next_sinpos();
- 
- }
-    OCR0A=ph0a;OCR0B=ph0b;OCR1AL=ph1a;OCR1BL=ph1b;OCR2A=ph2a;OCR2B=ph2b;   
-   
+     sinseg++;
+     if (sinseg>=sinseg_period) 
+     {
+        sinseg=0; 
+        if (amplitude==0 || mode==0){off_pwm();}
+        if (mode==1 && amplitude>0 ) {gen_next_sinpos();}             
+     }
+    sys_timer_cnt++;
+    if (sys_timer_cnt>138) {sys_timer_cnt=0; sys_timer();}
 }
-
+void sys_timer(void)
+{
+    
+}
 void gen_next_sinpos(void)
 {
     char tempU,tempV,tempW; 
     char compareHigh, compareLow;
     int tsp; 
-    if (amplitude==0 || mode==0){off_pwm(); return;}
     sinpos++;
     if (sinpos==SINE_TABLE_LENGTH) sinpos=0;   
     tsp=sinpos*3;
@@ -84,16 +116,16 @@ void gen_next_sinpos(void)
     }  
     
     InsertDeadband(tempU, &compareHigh, &compareLow);
-    ph0a = compareHigh;
-    ph0b = compareLow;
+    OCR0A = compareHigh;
+    OCR0B = compareLow;
 
     InsertDeadband(tempV, &compareHigh, &compareLow);
-    ph1a = compareHigh;
-    ph1b = compareLow;
+    OCR1AL = compareHigh;
+    OCR1BL = compareLow;
 
     InsertDeadband(tempW, &compareHigh, &compareLow);
-    ph2a = compareHigh;
-    ph2b = compareLow;
+    OCR2A = compareHigh;
+    OCR2B = compareLow;
 }
 
 void InsertDeadband(char compareValue, char * compareHighPtr, char * compareLowPtr)   //вставка метвого часу
@@ -118,7 +150,7 @@ void InsertDeadband(char compareValue, char * compareHighPtr, char * compareLowP
 void set_freq(int freq)
 {
    float amp;
-   if (freq==0) {amplitude=0; return;}   
+   if (freq==0) {amplitude=0;sinseg_period=124; return;}   
    sinseg_period=124/freq; 
    amp=map(freq,1,60,30,100); 
    amplitude=amp/100;    
@@ -132,6 +164,16 @@ void off_pwm(void)
     OCR1BL=0xFF;
     OCR2A=0x00;
     OCR2B=0xFF;
+}
+void check_error(void)
+{
+//POWER_SENS 
+// CAP_VOLTAGE
+//  DRIVER_TEMP
+//   NORMAL_LED
+//    ERROR_LED
+//    OVERLOAD 
+//     OVER_MOTORTEMP    
 }
 // Voltage Reference: AVCC pin
 #define ADC_VREF_TYPE ((0<<REFS1) | (1<<REFS0) | (0<<ADLAR))
@@ -170,8 +212,8 @@ DDRB=(0<<DDB7) | (0<<DDB6) | (0<<DDB5) | (0<<DDB4) | (1<<DDB3) | (1<<DDB2) | (1<
 PORTB=(0<<PORTB7) | (0<<PORTB6) | (0<<PORTB5) | (0<<PORTB4) | (0<<PORTB3) | (0<<PORTB2) | (0<<PORTB1) | (0<<PORTB0);
 
 // Port C initialization
-// Function: Bit6=In Bit5=In Bit4=In Bit3=In Bit2=In Bit1=In Bit0=In 
-DDRC=(0<<DDC6) | (0<<DDC5) | (0<<DDC4) | (0<<DDC3) | (0<<DDC2) | (0<<DDC1) | (0<<DDC0);
+// Function: Bit6=In Bit5=In Bit4=In Bit3=In Bit2=out Bit1=out Bit0=In 
+DDRC=(0<<DDC6) | (0<<DDC5) | (0<<DDC4) | (0<<DDC3) | (1<<DDC2) | (1<<DDC1) | (0<<DDC0);
 // State: Bit6=T Bit5=T Bit4=T Bit3=T Bit2=T Bit1=T Bit0=T 
 PORTC=(0<<PORTC6) | (0<<PORTC5) | (0<<PORTC4) | (0<<PORTC3) | (0<<PORTC2) | (0<<PORTC1) | (0<<PORTC0);
 
@@ -296,17 +338,12 @@ TCNT0=0;
 TCNT1L=2;
 TCNT2=5;
 #asm("sei")
-      set_freq(1);
+      set_freq(50);   
+      mode=1;
 while (1)
       {
       // Place your code here
 
-       delay_ms(5);
-       if (start_but==0) mode=1;
-       if (stop_but==0) mode=0;
-       if (revers_but==0) {direct=!direct;delay_ms(500);}    
-       adcv=map( read_adc(7),0,1023,0,60);
-       set_freq(adcv);     
-       OCR1AH=adcv;
+
       }
 }

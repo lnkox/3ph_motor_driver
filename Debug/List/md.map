@@ -2,8 +2,6 @@ RAM Allocation [bytes]
 Variable                                                                          Address   Size
 ------------------------------------------------------------------------------------------------
 amplitude                                                                         0x0180       4
-sinseg_period                                                                     0x0184       2
-sinseg                                                                            0x0186       2
 
 EEPROM Allocation [bytes]
 Variable                                                                          Address   Size
@@ -13,23 +11,19 @@ Register Allocation
 Variable                                                                          Register  Size
 ------------------------------------------------------------------------------------------------
 mode                                                                              R4           1
-ph0a                                                                              R3           1
-ph0b                                                                              R6           1
-ph1a                                                                              R5           1
-ph1b                                                                              R8           1
-ph2a                                                                              R7           1
-ph2b                                                                              R10          1
-sinpos                                                                            R11,R12      2
-direct                                                                            R13,R14      2
+sinpos                                                                            R5,R6        2
+direct                                                                            R7,R8        2
+sinseg_period                                                                     R9,R10       2
+sinseg                                                                            R11,R12      2
+sys_timer_cnt                                                                     R13,R14      2
 
 FLASH Allocation [words]
-Function                                                                          Address   Size
-------------------------------------------------------------------------------------------------
-map                                                                               0x00170     38
-timer0_ovf_isr                                                                    0x00196     75
-gen_next_sinpos                                                                   0x001E1     82
-InsertDeadband                                                                    0x00233     34
-set_freq                                                                          0x00255     68
-off_pwm                                                                           0x00299      7
-read_adc                                                                          0x002A0     28
-main                                                                              0x002BC    145
+Function                                                          Address   Size
+--------------------------------------------------------------------------------
+timer0_ovf_isr                                                    0x00196     61
+sys_timer                                                         0x001D3      1
+gen_next_sinpos                                                   0x001D4     86
+InsertDeadband                                                    0x0022A     34
+set_freq                                                          0x0024C     70
+off_pwm                                                           0x00292      7
+main                                                              0x00299    110
