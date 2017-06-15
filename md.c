@@ -79,7 +79,6 @@ unsigned int read_adc(unsigned char adc_input); // Функйція отримання значення А
 void check_button(); // Перевірка натисення кнопок
 // Declare your global variables here
 volatile int mode=0;
-volatile int sinpos=0;
 volatile int direct=0;
 volatile float amplitude=0;
 volatile int sinseg_period=124,sinseg=0;
@@ -89,6 +88,7 @@ volatile int cur_freq=0,freq=0;
 volatile int error_led_cnt=0,error_led_period=0,error=0; 
 volatile int overload_state=0,overvoltage_state=0,crytycal_voltage=0; 
 volatile int brake_cnt=0; 
+volatile char sinU=0,sinV=42,sinW=85;
 
 #pragma warn-
 eeprom  int driver_temp_state;
@@ -100,16 +100,27 @@ long map(long x, long in_min, long in_max, long out_min, long out_max)
 
 interrupt [TIM0_OVF] void timer0_ovf_isr(void)
 {
-    if (OVER_LOAD==0 ) {off_pwm(); mode=MODE_STOP;} 
-     sinseg++;
-     if (sinseg>=sinseg_period) 
-     {
-        sinseg=0; 
-        if (amplitude==0 || mode==0){off_pwm();}
-        if (mode>0 && amplitude>0  && overvoltage_state==0) {gen_next_sinpos();}             
-     }
-    sys_timer_cnt++;
-    if (sys_timer_cnt>138) {sys_timer_cnt=0; sys_timer();}
+
+//     if (OVER_LOAD==0 ) {off_pwm(); mode=MODE_STOP;}// Постійна перевірка на перевантаження по струму 
+   NORMAL_LED=!NORMAL_LED;    
+    NORMAL_LED=!NORMAL_LED;
+//  sinseg++;
+//    if (sinseg>=sinseg_period) 
+// {
+//    sinseg=0;
+//   
+//   if (mode>0 && overvoltage_state==0) 
+//   {
+//       gen_next_sinpos();
+//   }
+//    else
+//    {
+//        off_pwm();
+//    }             
+//   }
+//    sys_timer_cnt++;
+//    if (sys_timer_cnt>138) {sys_timer_cnt=0; sys_timer();}
+
 }
 void sys_timer(void)
 {
@@ -134,7 +145,7 @@ void sys_timer(void)
         }
         else
         { 
-            freq=map( read_adc(FREQUENCY_ADC),0,1023,0,60); 
+            freq=map( read_adc(FREQUENCY_ADC),0,1023,1,60); 
         } 
       
       
@@ -143,7 +154,6 @@ void sys_timer(void)
    {  
         if (error>0)
         {
-             //NORMAL_LED=0;
              error_led_cnt++;
              if (error_led_cnt>error_led_period) 
              {  
@@ -153,7 +163,7 @@ void sys_timer(void)
         } 
         if (mode==MODE_STOP  && error==ERROR_NO) 
         {
-           // NORMAL_LED=1;
+           NORMAL_LED=1;
         }
        
         
@@ -186,20 +196,17 @@ void gen_next_sinpos(void)
 {
     char tempU,tempV,tempW; 
     char compareHigh, compareLow;
-    int tsp; 
-    sinpos++;
-    if (sinpos==SINE_TABLE_LENGTH) sinpos=0;   
-    tsp=sinpos*3;
-    tempU=sineTable[tsp]*amplitude;
+    sinU++;sinV++;sinW++;                 
+    tempU=127+(sineTable[sinU]*amplitude);
     if (direct == DIRECTION_FORWARD)
     {
-        tempV = sineTable[tsp+1]*amplitude;
-        tempW = sineTable[tsp+2]*amplitude;
+        tempV =127+(sineTable[sinV]*amplitude);
+        tempW =127+(sineTable[sinW]*amplitude);
     }
     else
     {
-        tempW = sineTable[tsp+1]*amplitude;
-        tempV = sineTable[tsp+2]*amplitude;
+        tempW =127+(sineTable[sinV]*amplitude);
+        tempV =127+(sineTable[sinW]*amplitude);
     }  
     
     InsertDeadband(tempU, &compareHigh, &compareLow);
@@ -237,12 +244,10 @@ void InsertDeadband(char compareValue, char * compareHighPtr, char * compareLowP
 void set_freq(int fr)
 {
    float amp;
-   if (fr==0) {amplitude=0;sinseg_period=124; return;}   
-   sinseg_period=124/fr; 
+   sinseg_period=62/fr; 
    amp=map(fr,1,50,30,100); 
    if (amp>100) amp=100;
    amplitude=amp/100;    
-   
 }
 void off_pwm(void)
 {
@@ -259,7 +264,6 @@ void check_error(void)
     volatile int capvoltage,driver_t=0;
    // capvoltage=read_adc(CAP_VOLTAGE);
     //POWER_SENS 
-   NORMAL_LED=!NORMAL_LED;
   
    // if (capvoltage<NORM_VOLTAGE){overvoltage_state=0;}
    // if (capvoltage>MAX_BRAKE_VOLTAGE) {off_pwm();overvoltage_state=1;}
@@ -437,9 +441,11 @@ TCNT0=0;    //Синхронізація таймерів
 TCNT1L=2;   //Синхронізація таймерів
 TCNT2=5;    //Синхронізація таймерів
 #asm("sei")
+mode=1;
+sinseg_period=1;
 while (1)
       {
-        check_error(); // Перевірка на помилки (Виконується весь вільний процесорний час)
+       // check_error(); // Перевірка на помилки (Виконується весь вільний процесорний час)
 
 
       }
