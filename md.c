@@ -52,20 +52,20 @@ Data Stack size         : 128
 // Роспіновка
 #define FORWARD_BUT     PIND.1  //  Кнопка запуску вперед
 #define STOP_BUT        PIND.0  //  Кнопка зупинки
-#define REVERSE_BUT     PINC.5  //  Кнопка запуску назад
+#define REVERSE_BUT     PINC.0  //  Кнопка запуску назад
 
 #define POWER_SENS      PIND.2  // Пропажа сети - нормальное состояние лог.0, при лог.1 - сделать стоп привода, после появления лог.0 - выждать 4 секунды>зажечть светодиод PC2> разрешить генерацию. 
 #define CAP_VOLTAGE     3       //ADC3 - пренапряжение силовой части ( больше +340В).С силового конденсатора через делитель заходит сигнал. Номинальное напряжение на порте 2,5В (310В) все что выше 2,75 (340В) является перенапряжением. В случае перенапряжения от 2,75 до 2,9В - приостанавливать торможение, до тех пор пока не упадет до 2,5В. В случае перенапряжения выше 2,9В - резко прекратить генерацию, на светодиод PC1 подать сигнал с частотой 3 Гц. Выйти из аварии через нажатие PD0. 
 #define DRIVER_TEMP     4       //ADC4 - измерение перегрева силовой части. Согласно таблицам расчитать работы терморезистора. При перегреве выше 80 градусов. Сделать остановку привода, на светодиод PC1 подать сигнал с частотой 2Гц. Работу привода возобновить с охлаждением до 50 градусов. (Нужно запоминать значение аварии, что бы нельзя было сбить защиту путем включения, выключения привода) 
 #define FREQUENCY_ADC   7       //ADC7 - регулировка частоты
-#define NORMAL_LED      PORTC.2 // - светодиод индикации работы - начинает гореть спустя 4 секунды после (включения PD2) При включении генерации мигает с частотой 2 Гц. 
-#define ERROR_LED       PORTC.1 // - светодиод индикации аварии
-#define OVER_LOAD       PINB.5  // - сверхток - лог.0 (подтянут через 10К к 5В) - при подаче лог.0 на этот вывод - резко прекратить генерацию, на светодиод PC1 подать постоянный сигнал. Выйти из аварии через нажатие PD0. 
+#define NORMAL_LED      PORTC.1 // - светодиод индикации работы - начинает гореть спустя 4 секунды после (включения PD2) При включении генерации мигает с частотой 2 Гц. 
+#define ERROR_LED       PORTC.2 // - светодиод индикации аварии
+#define OVER_LOAD       PINB.4  // - сверхток - лог.0 (подтянут через 10К к 5В) - при подаче лог.0 на этот вывод - резко прекратить генерацию, на светодиод PC1 подать постоянный сигнал. Выйти из аварии через нажатие PD0. 
 #define OVER_MOTORTEMP  PIND.4  // - Перегрев двигателя - нормальное состояние лог.0 при появлении лог.1. сделать стоп привода, подать на PC1 сигнал с частотой 1Гц. Разрешить работу только при появлении лог.0.
 
 // Кінець роспіновки
 
-#include <mega48.h>
+#include <mega48pa.h>
 
 #include <delay.h>
 #include <md.h>
@@ -100,19 +100,20 @@ long map(long x, long in_min, long in_max, long out_min, long out_max)
 
 interrupt [TIM0_OVF] void timer0_ovf_isr(void)
 {
+    if (OVER_LOAD==0 ) {off_pwm(); mode=MODE_STOP;} 
      sinseg++;
      if (sinseg>=sinseg_period) 
      {
         sinseg=0; 
         if (amplitude==0 || mode==0){off_pwm();}
-        if (mode==1 && amplitude>0  && overvoltage_state==0) {gen_next_sinpos();}             
+        if (mode>0 && amplitude>0  && overvoltage_state==0) {gen_next_sinpos();}             
      }
     sys_timer_cnt++;
     if (sys_timer_cnt>138) {sys_timer_cnt=0; sys_timer();}
 }
 void sys_timer(void)
 {
-   if (mode==MODE_RUN)
+   if (mode>0)
    { 
         if(cur_freq<freq || cur_freq>freq)
         {
@@ -123,15 +124,26 @@ void sys_timer(void)
                 if (cur_freq<freq) {cur_freq++;} else {cur_freq--;} 
                 set_freq(cur_freq);
             }
+        }
+         if (mode==MODE_BRAKE)
+        {
+            freq=1;
+            if (cur_freq==1)  brake_cnt++;
+            
+            if (brake_cnt>BRAKE_PERIOD) {brake_cnt=0;mode=MODE_STOP;off_pwm();}
+        }
+        else
+        { 
+            freq=map( read_adc(FREQUENCY_ADC),0,1023,0,60); 
         } 
-      freq=map( read_adc(FREQUENCY_ADC),0,1023,0,60); 
+      
+      
    } 
    else
    {  
-        cur_freq=1;
         if (error>0)
         {
-             NORMAL_LED=0;
+             //NORMAL_LED=0;
              error_led_cnt++;
              if (error_led_cnt>error_led_period) 
              {  
@@ -141,14 +153,9 @@ void sys_timer(void)
         } 
         if (mode==MODE_STOP  && error==ERROR_NO) 
         {
-            NORMAL_LED=1;
+           // NORMAL_LED=1;
         }
-        if (mode==MODE_BRAKE)
-        {
-            freq=1;
-            brake_cnt++;
-            if (brake_cnt>BRAKE_PERIOD) {brake_cnt=0;mode=MODE_STOP;}
-        }
+       
         
    }  
    
@@ -156,6 +163,7 @@ void sys_timer(void)
 }
 void check_button()
 {
+
     if (mode==MODE_STOP)
     {
         if(REVERSE_BUT==0) {mode=MODE_RUN;direct=DIRECTION_REVERSE;}
@@ -249,17 +257,18 @@ void check_error(void)
 {
     volatile int tmp_error=0;
     volatile int capvoltage,driver_t=0;
-     capvoltage=read_adc(CAP_VOLTAGE);
+   // capvoltage=read_adc(CAP_VOLTAGE);
     //POWER_SENS 
-
-    if (capvoltage<NORM_VOLTAGE){overvoltage_state=0;}
-    if (capvoltage>MAX_BRAKE_VOLTAGE) {off_pwm();overvoltage_state=1;}
-    if (capvoltage>CRYTYCAL_VOLTAGE || crytycal_voltage==1) {off_pwm(); mode=MODE_STOP;crytycal_voltage=1; error_led_period=33;tmp_error=ERROR_OVERVOLTAGE;} 
-    driver_t=read_adc(DRIVER_TEMP);  
-    if (driver_t>MAX_TEMP_DRIVER || driver_temp_state==1)   {off_pwm(); mode=MODE_STOP;driver_temp_state=1; error_led_period=50;tmp_error=ERROR_DRIVERTEMP;}   
-    if (driver_t<NORM_TEMP_DRIVER)  {driver_temp_state=0;}   
+   NORMAL_LED=!NORMAL_LED;
+  
+   // if (capvoltage<NORM_VOLTAGE){overvoltage_state=0;}
+   // if (capvoltage>MAX_BRAKE_VOLTAGE) {off_pwm();overvoltage_state=1;}
+   // if (capvoltage>CRYTYCAL_VOLTAGE || crytycal_voltage==1) {off_pwm(); mode=MODE_STOP;crytycal_voltage=1; error_led_period=33;tmp_error=ERROR_OVERVOLTAGE;} 
+   // driver_t=read_adc(DRIVER_TEMP);  
+   // if (driver_t>MAX_TEMP_DRIVER || driver_temp_state==1)   {off_pwm(); mode=MODE_STOP;driver_temp_state=1; error_led_period=50;tmp_error=ERROR_DRIVERTEMP;}   
+   // if (driver_t<NORM_TEMP_DRIVER)  {driver_temp_state=0;}   
     if (OVER_LOAD==0 || overload_state==1) {off_pwm(); mode=MODE_STOP;overload_state=1; ERROR_LED=1;tmp_error=ERROR_OVERLOAD;} 
-    if (OVER_MOTORTEMP==1) {mode=MODE_STOP; tmp_error=ERROR_MOTORTEMP;error_led_period=100;} 
+   // if (OVER_MOTORTEMP==1) {mode=MODE_STOP; tmp_error=ERROR_MOTORTEMP;error_led_period=100;} 
     error=tmp_error;
     if (error==0) {ERROR_LED=0;}   
 }
@@ -298,12 +307,14 @@ DDRB=(0<<DDB7) | (0<<DDB6) | (0<<DDB5) | (0<<DDB4) | (1<<DDB3) | (1<<DDB2) | (1<
 // State: Bit7=T Bit6=T Bit5=T Bit4=T Bit3=0 Bit2=0 Bit1=0 Bit0=T 
 PORTB=(0<<PORTB7) | (0<<PORTB6) | (0<<PORTB5) | (0<<PORTB4) | (0<<PORTB3) | (0<<PORTB2) | (0<<PORTB1) | (0<<PORTB0);
 
+
 // Port C initialization
-// Function: Bit6=In Bit5=In Bit4=In Bit3=In Bit2=out Bit1=out Bit0=In 
+// Function: Bit6=In Bit5=In Bit4=In Bit3=In Bit2=Out Bit1=Out Bit0=In 
 DDRC=(0<<DDC6) | (0<<DDC5) | (0<<DDC4) | (0<<DDC3) | (1<<DDC2) | (1<<DDC1) | (0<<DDC0);
-// State: Bit6=T Bit5=T Bit4=T Bit3=T Bit2=T Bit1=T Bit0=T 
+// State: Bit6=T Bit5=T Bit4=T Bit3=T Bit2=0 Bit1=0 Bit0=T 
 PORTC=(0<<PORTC6) | (0<<PORTC5) | (0<<PORTC4) | (0<<PORTC3) | (0<<PORTC2) | (0<<PORTC1) | (0<<PORTC0);
 
+//
 // Port D initialization
 // Function: Bit7=In Bit6=Out Bit5=Out Bit4=In Bit3=Out Bit2=In Bit1=In Bit0=In 
 DDRD=(0<<DDD7) | (1<<DDD6) | (1<<DDD5) | (0<<DDD4) | (1<<DDD3) | (0<<DDD2) | (0<<DDD1) | (0<<DDD0);

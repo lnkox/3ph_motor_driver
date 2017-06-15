@@ -22,21 +22,22 @@ brake_cnt                                                                       
 EEPROM Allocation [bytes]
 Variable                                                                          Address   Size
 ------------------------------------------------------------------------------------------------
-driver_temp_state                                                                 0x0000       2
 
 Register Allocation
 Variable                                                                          Register  Size
 ------------------------------------------------------------------------------------------------
 
 FLASH Allocation [words]
-Function                                                          Address   Size
---------------------------------------------------------------------------------
-timer0_ovf_isr                                                    0x00191     82
-sys_timer                                                         0x001E3    132
-check_button                                                      0x00267     39
-gen_next_sinpos                                                   0x0028E     96
-InsertDeadband                                                    0x002EE     31
-set_freq                                                          0x0030D     70
-off_pwm                                                           0x00353      7
-check_error                                                       0x0035A    139
-main                                                              0x00401    104
+Function                                                                          Address   Size
+------------------------------------------------------------------------------------------------
+map                                                                               0x0016B     38
+timer0_ovf_isr                                                                    0x00191     84
+sys_timer                                                                         0x001E5    127
+check_button                                                                      0x00264     39
+gen_next_sinpos                                                                   0x0028B     96
+InsertDeadband                                                                    0x002EB     34
+set_freq                                                                          0x0030D     70
+off_pwm                                                                           0x00353      7
+check_error                                                                       0x0035A     46
+read_adc                                                                          0x00388     28
+main                                                                              0x003A4    104
