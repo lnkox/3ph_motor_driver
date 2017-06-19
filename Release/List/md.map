@@ -1,0 +1,34 @@
+RAM Allocation [bytes]
+Variable                                                                          Address   Size
+------------------------------------------------------------------------------------------------
+amplitude                                                                         0x01A8       4
+overvoltage_state                                                                 0x01AC       2
+sinU                                                                              0x01AE       1
+sinV                                                                              0x01AF       1
+sinW                                                                              0x01B0       1
+h_sin                                                                             0x01B1      14
+l_sin                                                                             0x01BF      14
+tmpsin                                                                            0x01CD       1
+
+EEPROM Allocation [bytes]
+Variable                                                                          Address   Size
+------------------------------------------------------------------------------------------------
+
+Register Allocation
+Variable                                                                          Register  Size
+------------------------------------------------------------------------------------------------
+mode                                                                              R3,R4        2
+direct                                                                            R5,R6        2
+sinseg_period                                                                     R7,R8        2
+sinseg                                                                            R9,R10       2
+sys_timer_cnt                                                                     R11,R12      2
+accel_cnt                                                                         R13,R14      2
+
+FLASH Allocation [words]
+Function                                                          Address   Size
+--------------------------------------------------------------------------------
+timer0_ovf_isr                                                    0x000DE     13
+gen_next_sinpos                                                   0x000EB     83
+calculate_sintable                                                0x0013E     77
+off_pwm                                                           0x0018B      7
+main                                                              0x00192    157

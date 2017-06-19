@@ -1,22 +1,6 @@
 RAM Allocation [bytes]
 Variable                                                                          Address   Size
 ------------------------------------------------------------------------------------------------
-mode                                                                              0x0180       2
-direct                                                                            0x0182       2
-amplitude                                                                         0x0184       4
-sinseg_period                                                                     0x0188       2
-accel_cnt                                                                         0x018A       2
-cur_freq                                                                          0x018C       2
-freq                                                                              0x018E       2
-error_led_cnt                                                                     0x0190       2
-error_led_period                                                                  0x0192       2
-error                                                                             0x0194       2
-overload_state                                                                    0x0196       2
-crytycal_voltage                                                                  0x0198       2
-brake_cnt                                                                         0x019A       2
-sinU                                                                              0x019C       1
-sinV                                                                              0x019D       1
-sinW                                                                              0x019E       1
 
 EEPROM Allocation [bytes]
 Variable                                                                          Address   Size
@@ -25,9 +9,11 @@ Variable                                                                        
 Register Allocation
 Variable                                                                          Register  Size
 ------------------------------------------------------------------------------------------------
+sinseg                                                                            R4           1
+sys_timer_cnt                                                                     R3           1
 
 FLASH Allocation [words]
 Function                                                          Address   Size
 --------------------------------------------------------------------------------
-timer0_ovf_isr                                                    0x000D4     11
-main                                                              0x000DF    122
+timer2_ovf_isr                                                    0x00076      7
+main                                                              0x00099    391
