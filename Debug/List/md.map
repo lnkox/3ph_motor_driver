@@ -1,6 +1,7 @@
 RAM Allocation [bytes]
 Variable                                                                          Address   Size
 ------------------------------------------------------------------------------------------------
+out_cnt                                                                           0x0200       2
 
 EEPROM Allocation [bytes]
 Variable                                                                          Address   Size
@@ -9,11 +10,17 @@ Variable                                                                        
 Register Allocation
 Variable                                                                          Register  Size
 ------------------------------------------------------------------------------------------------
-sinseg                                                                            R4           1
-sys_timer_cnt                                                                     R3           1
+p1l                                                                               R4           1
+p1h                                                                               R3           1
+p2l                                                                               R6           1
+p2h                                                                               R5           1
+p3l                                                                               R8           1
+p3h                                                                               R7           1
+sys_timer_cnt                                                                     R10          1
 
 FLASH Allocation [words]
 Function                                                          Address   Size
 --------------------------------------------------------------------------------
-timer2_ovf_isr                                                    0x00076      7
-main                                                              0x00099    391
+ext_int0_isr                                                      0x00426     20
+timer0_ovf_isr                                                    0x0043A     16
+main                                                              0x0044A    448

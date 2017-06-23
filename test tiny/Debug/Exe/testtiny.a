@@ -1,0 +1,151 @@
+;#include <tiny13.h>
+;PCODE: $00000000 VOL: 0
+	#ifndef __SLEEP_DEFINED__
+;PCODE: $00000001 VOL: 0
+	#define __SLEEP_DEFINED__
+;PCODE: $00000002 VOL: 0
+	.EQU __se_bit=0x20
+;PCODE: $00000003 VOL: 0
+	.EQU __sm_mask=0x18
+;PCODE: $00000004 VOL: 0
+	.EQU __sm_adc_noise_red=0x08
+;PCODE: $00000005 VOL: 0
+	.EQU __sm_powerdown=0x10
+;PCODE: $00000006 VOL: 0
+	.SET power_ctrl_reg=mcucr
+;PCODE: $00000007 VOL: 0
+	#endif
+;PCODE: $00000008 VOL: 0
+;PCODE: $00000009 VOL: 0
+;
+;// Declare your global variables here
+;
+;// Timer 0 overflow interrupt service routine
+;interrupt [TIM0_OVF] void timer0_ovf_isr(void)
+; 0000 0007 {
+
+	.CSEG
+;PCODE: $0000000A VOL: 0
+;PCODE: $0000000B VOL: 0
+; 0000 0008 // Reinitialize Timer 0 value
+; 0000 0009 TCNT0=0xC0;
+;PCODE: $0000000C VOL: 0
+;PCODE: $0000000D VOL: 0
+; 0000 000A // Place your code here
+; 0000 000B 
+; 0000 000C }
+;PCODE: $0000000E VOL: 0
+;PCODE: $0000000F VOL: 0
+;PCODE: $00000010 VOL: 0
+;
+;void main(void)
+; 0000 000F {
+;PCODE: $00000011 VOL: 0
+; 0000 0010 // Declare your local variables here
+; 0000 0011 
+; 0000 0012 // Crystal Oscillator division factor: 1
+; 0000 0013 #pragma optsize-
+; 0000 0014 CLKPR=(1<<CLKPCE);
+;PCODE: $00000012 VOL: 0
+;PCODE: $00000013 VOL: 0
+; 0000 0015 CLKPR=(0<<CLKPCE) | (0<<CLKPS3) | (0<<CLKPS2) | (0<<CLKPS1) | (0<<CLKPS0);
+;PCODE: $00000014 VOL: 0
+;PCODE: $00000015 VOL: 0
+; 0000 0016 #ifdef _OPTIMIZE_SIZE_
+; 0000 0017 #pragma optsize+
+; 0000 0018 #endif
+; 0000 0019 
+; 0000 001A // Input/Output Ports initialization
+; 0000 001B // Port B initialization
+; 0000 001C // Function: Bit5=In Bit4=In Bit3=In Bit2=In Bit1=In Bit0=Out
+; 0000 001D DDRB=(0<<DDB5) | (0<<DDB4) | (0<<DDB3) | (0<<DDB2) | (0<<DDB1) | (1<<DDB0);
+;PCODE: $00000016 VOL: 0
+;PCODE: $00000017 VOL: 0
+; 0000 001E // State: Bit5=T Bit4=T Bit3=T Bit2=T Bit1=T Bit0=0
+; 0000 001F PORTB=(0<<PORTB5) | (0<<PORTB4) | (0<<PORTB3) | (0<<PORTB2) | (0<<PORTB1) | (0<<PORTB0);
+;PCODE: $00000018 VOL: 0
+;PCODE: $00000019 VOL: 0
+; 0000 0020 
+; 0000 0021 // Timer/Counter 0 initialization
+; 0000 0022 // Clock source: System Clock
+; 0000 0023 // Clock value: 9600,000 kHz
+; 0000 0024 // Mode: Fast PWM top=0xFF
+; 0000 0025 // OC0A output: Non-Inverted PWM
+; 0000 0026 // OC0B output: Disconnected
+; 0000 0027 // Timer Period: 0,026667 ms
+; 0000 0028 // Output Pulse(s):
+; 0000 0029 // OC0A Period: 0,026667 ms Width: 0,023425 ms
+; 0000 002A TCCR0A=(1<<COM0A1) | (0<<COM0A0) | (0<<COM0B1) | (0<<COM0B0) | (1<<WGM01) | (1<<WGM00);
+;PCODE: $0000001A VOL: 0
+;PCODE: $0000001B VOL: 0
+; 0000 002B TCCR0B=(0<<WGM02) | (0<<CS02) | (0<<CS01) | (1<<CS00);
+;PCODE: $0000001C VOL: 0
+;PCODE: $0000001D VOL: 0
+; 0000 002C TCNT0=0xC0;
+;PCODE: $0000001E VOL: 0
+;PCODE: $0000001F VOL: 0
+; 0000 002D OCR0A=0xE0;
+;PCODE: $00000020 VOL: 0
+;PCODE: $00000021 VOL: 0
+; 0000 002E OCR0B=0x00;
+;PCODE: $00000022 VOL: 0
+;PCODE: $00000023 VOL: 0
+; 0000 002F 
+; 0000 0030 // Timer/Counter 0 Interrupt(s) initialization
+; 0000 0031 TIMSK0=(0<<OCIE0B) | (0<<OCIE0A) | (1<<TOIE0);
+;PCODE: $00000024 VOL: 0
+;PCODE: $00000025 VOL: 0
+; 0000 0032 
+; 0000 0033 // External Interrupt(s) initialization
+; 0000 0034 // INT0: Off
+; 0000 0035 // Interrupt on any change on pins PCINT0-5: Off
+; 0000 0036 GIMSK=(0<<INT0) | (0<<PCIE);
+;PCODE: $00000026 VOL: 0
+;PCODE: $00000027 VOL: 0
+; 0000 0037 MCUCR=(0<<ISC01) | (0<<ISC00);
+;PCODE: $00000028 VOL: 0
+;PCODE: $00000029 VOL: 0
+; 0000 0038 
+; 0000 0039 // Analog Comparator initialization
+; 0000 003A // Analog Comparator: Off
+; 0000 003B // The Analog Comparator's positive input is
+; 0000 003C // connected to the AIN0 pin
+; 0000 003D // The Analog Comparator's negative input is
+; 0000 003E // connected to the AIN1 pin
+; 0000 003F ACSR=(1<<ACD) | (0<<ACBG) | (0<<ACO) | (0<<ACI) | (0<<ACIE) | (0<<ACIS1) | (0<<ACIS0);
+;PCODE: $0000002A VOL: 0
+;PCODE: $0000002B VOL: 0
+; 0000 0040 ADCSRB=(0<<ACME);
+;PCODE: $0000002C VOL: 0
+;PCODE: $0000002D VOL: 0
+; 0000 0041 // Digital input buffer on AIN0: On
+; 0000 0042 // Digital input buffer on AIN1: On
+; 0000 0043 DIDR0=(0<<AIN0D) | (0<<AIN1D);
+;PCODE: $0000002E VOL: 0
+;PCODE: $0000002F VOL: 0
+; 0000 0044 
+; 0000 0045 // ADC initialization
+; 0000 0046 // ADC disabled
+; 0000 0047 ADCSRA=(0<<ADEN) | (0<<ADSC) | (0<<ADATE) | (0<<ADIF) | (0<<ADIE) | (0<<ADPS2) | (0<<ADPS1) | (0<<ADPS0);
+;PCODE: $00000030 VOL: 0
+;PCODE: $00000031 VOL: 0
+; 0000 0048 
+; 0000 0049 
+; 0000 004A // Global enable interrupts
+; 0000 004B #asm("sei")
+;PCODE: $00000032 VOL: 0
+	sei
+;PCODE: $00000033 VOL: 0
+; 0000 004C 
+; 0000 004D while (1)
+;PCODE: $00000034 VOL: 0
+; 0000 004E       {
+; 0000 004F       // Place your code here
+; 0000 0050 
+; 0000 0051       }
+;PCODE: $00000035 VOL: 0
+;PCODE: $00000036 VOL: 0
+; 0000 0052 }
+;PCODE: $00000037 VOL: 0
+;PCODE: $00000038 VOL: 0
+;PCODE: $00000039 VOL: 0

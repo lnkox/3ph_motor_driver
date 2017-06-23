@@ -1,0 +1,2 @@
+main DSTACK_USAGE:0 DSTACK_LEVEL:0 FILE:"testtiny.c" LINE:14
+timer0_ovf_isr DSTACK_USAGE:1 DSTACK_LEVEL:1 FILE:"testtiny.c" LINE:6
