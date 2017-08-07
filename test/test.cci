@@ -1,0 +1,4 @@
+VERSION:3 SOURCE_TIMESTAMP:4AD77E30
+NODE:I LEVEL:0 LINE:1 "C:\cvavr\inc\mega48.h"
+NODE:F LEVEL:0 LINE:6 "ext_int0_isr(void)"
+NODE:F LEVEL:0 LINE:12 "main(void)"

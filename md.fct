@@ -1,2 +1,7 @@
+<<<<<<< HEAD
 main DSTACK_USAGE:0 DSTACK_LEVEL:0 FILE:"md.c" LINE:16
 timer1_compa_isr DSTACK_USAGE:2 DSTACK_LEVEL:2 FILE:"md.c" LINE:6
+=======
+main DSTACK_USAGE:146 DSTACK_LEVEL:146 FILE:"md.c" LINE:90
+ext_int0_isr DSTACK_USAGE:5 DSTACK_LEVEL:151 FILE:"md.c" LINE:56
+>>>>>>> origin/master

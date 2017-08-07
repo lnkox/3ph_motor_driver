@@ -1,2 +1,8 @@
+<<<<<<< HEAD
 VERSION:3 SOURCE_TIMESTAMP:4AD4A5C5
 NODE:C LEVEL:0 LINE:3 "sineTable -> FLASH"
+=======
+VERSION:3 SOURCE_TIMESTAMP:4AD803C2
+NODE:C LEVEL:0 LINE:1 "period_table -> FLASH"
+NODE:C LEVEL:0 LINE:2 "sineTable -> FLASH"
+>>>>>>> origin/master

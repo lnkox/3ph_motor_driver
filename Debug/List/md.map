@@ -1,6 +1,7 @@
 RAM Allocation [bytes]
 Variable                                                                          Address   Size
 ------------------------------------------------------------------------------------------------
+out_cnt                                                                           0x0200       2
 
 EEPROM Allocation [bytes]
 Variable                                                                          Address   Size
@@ -9,6 +10,7 @@ Variable                                                                        
 Register Allocation
 Variable                                                                          Register  Size
 ------------------------------------------------------------------------------------------------
+<<<<<<< HEAD
 d                                                                                 R4           1
 
 FLASH Allocation [words]
@@ -17,3 +19,19 @@ Function                                                                        
 timer1_compa_isr                                                                  0x0004B      6
 wdt_timeout_isr                                                                   0x00051      6
 main                                                                              0x00057     99
+=======
+p1l                                                                               R4           1
+p1h                                                                               R3           1
+p2l                                                                               R6           1
+p2h                                                                               R5           1
+p3l                                                                               R8           1
+p3h                                                                               R7           1
+sys_timer_cnt                                                                     R10          1
+
+FLASH Allocation [words]
+Function                                                          Address   Size
+--------------------------------------------------------------------------------
+ext_int0_isr                                                      0x00426     20
+timer0_ovf_isr                                                    0x0043A     16
+main                                                              0x0044A    448
+>>>>>>> origin/master
