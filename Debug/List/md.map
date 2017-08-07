@@ -9,11 +9,11 @@ Variable                                                                        
 Register Allocation
 Variable                                                                          Register  Size
 ------------------------------------------------------------------------------------------------
-sinseg                                                                            R4           1
-sys_timer_cnt                                                                     R3           1
+d                                                                                 R4           1
 
 FLASH Allocation [words]
-Function                                                          Address   Size
---------------------------------------------------------------------------------
-timer2_ovf_isr                                                    0x00076      7
-main                                                              0x00099    391
+Function                                                                          Address   Size
+------------------------------------------------------------------------------------------------
+timer1_compa_isr                                                                  0x0004B      6
+wdt_timeout_isr                                                                   0x00051      6
+main                                                                              0x00057     99
